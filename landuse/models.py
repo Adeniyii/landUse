@@ -1,9 +1,14 @@
-from landuse import db
 from datetime import datetime
+from landuse import db, loginManager
+from flask_login import UserMixin
 
+# load user using user id from sessions
+@loginManager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
 
 # table name defaults to lowercase class name
-class User(db.Model):
+class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(20), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
