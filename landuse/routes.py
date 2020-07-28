@@ -1,7 +1,9 @@
+import secrets, os
+from PIL import Image
 from landuse.models import User, Post
 from landuse import app, bcrypt, db, loginManager
-from landuse.forms import RegistrationForm, LoginForm
 from flask import render_template, url_for, flash, redirect, request
+from landuse.forms import RegistrationForm, LoginForm, UpdateAccountForm
 from flask_login import login_user, current_user, logout_user, login_required
 
 posts = [
@@ -75,7 +77,34 @@ def dashboard():
     return render_template("dashboard.html", title="Dashboard")
 
 
+def savePicture(form_picture):
+    randomHex = secrets.token_hex(8)
+    _, fExt = os.path.splitext(form_picture.filename)
+    picFilename = randomHex + fExt
+    picPath = os.path.join(app.root_path, 'static/profilePics', picFilename)
+    outputSize = (125, 125)
+    i = Image.open(form_picture)
+    i.thumbnail(outputSize)
+    i.save(picPath)
+    return picFilename
+
+
 @app.route("/account", methods=["GET", "POST"])
 @login_required
 def account():
-    return render_template("account.html", title="Account")
+    form = UpdateAccountForm()
+    if form.validate_on_submit():
+        if form.picture.data:
+            picFile = savePicture(form.picture.data)
+            current_user.image_file = picFile
+        current_user.username = form.username.data
+        current_user.email = form.email.data
+        db.session.commit()
+        flash('Your account has been updated!', 'success')
+        # avoid POST - GET redirect pattern
+        return redirect(url_for('account'))
+    elif request.method == 'GET':
+        form.username.data = current_user.username
+        form.email.data = current_user.email
+    imageFile = url_for('static', filename='profilePics/' + current_user.image_file)
+    return render_template("account.html", title="Account", imageFile=imageFile, form=form)
